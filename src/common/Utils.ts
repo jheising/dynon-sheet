@@ -1,5 +1,5 @@
 import "cross-fetch/polyfill";
-import {has} from "lodash";
+import {has, isNil} from "lodash";
 import * as safeEval from "notevil";
 import * as isEqual from "react-fast-compare";
 import * as slug from "slug";
@@ -97,7 +97,7 @@ export class Utils {
     {
         try {
             let url = new URL(urlString);
-            return true;
+            return !(isNil(url.host) || url.host.length === 0);
         }
         catch (e) {
             return false;

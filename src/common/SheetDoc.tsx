@@ -3,6 +3,7 @@ import {isNil, isString, has, get, set, isObjectLike, isFunction, cloneDeep, def
 import {HTTPRequestComponent} from "../components/HTTPRequestComponent";
 import {Utils} from "./Utils";
 import {JSONViewer} from "../components/JSONViewer";
+import * as ReactMarkdown from "react-markdown";
 
 export interface Row {
     id: string;
@@ -89,7 +90,7 @@ export class RowUtils {
 
         if (has(dataValue, "$ask")) {
             return <div className="question-output">
-                <span className="question-label">{get(dataValue, "$ask.question", "")}</span>
+                <ReactMarkdown linkTarget="_blank" className="question-label content" source={get(dataValue, "$ask.question", "")}/>
                 <input className="input" type="text"
                        value={get(dataValue, "$ask.answer", "")}
                        onChange={(event) => {
@@ -126,7 +127,7 @@ export class RowUtils {
         } else if (/^-+$/.test(calculatedValue)) {
             outputComponent = <hr/>;
         } else {
-            outputComponent = calculatedValue.toString();
+            outputComponent = <ReactMarkdown linkTarget="_blank" className="content" source={calculatedValue.toString()}/>
         }
 
         return outputComponent;
