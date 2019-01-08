@@ -3,6 +3,7 @@ import {has} from "lodash";
 import * as safeEval from "notevil";
 import * as isEqual from "react-fast-compare";
 import * as slug from "slug";
+import * as stableJSONStringify from "fast-json-stable-stringify";
 
 export interface HTTPRequest {
     url: string;
@@ -25,6 +26,16 @@ export interface HTTPResponse {
 export class Utils {
 
     static isEqual = isEqual;
+
+    static stableJSONStringify(jsonObject:any):string
+    {
+        return stableJSONStringify(jsonObject);
+    }
+
+    static removeComments(theString:string):string
+    {
+        return theString.replace(/([^:]|^)\/\/.*?($|[\r\n])/g, "");
+    }
 
     static slugify(theString:string):string
     {

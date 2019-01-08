@@ -7,7 +7,8 @@ import {JSONViewer} from "../components/JSONViewer";
 export interface Row {
     id: string;
     value?: string;
-    _dataValue?:any;
+    hidden?: boolean;
+    _dataValue?: any;
     _calculatedValue?: any;
 }
 
@@ -19,30 +20,40 @@ export class RowUtils {
 
     static setValue(row: Row, value: string) {
         row.value = value;
-        row._dataValue = value;
 
-        if (Utils.isURL(row.value)) {
-            row._dataValue = defaultsDeep({}, {$http: {url:row.value}}, row._dataValue);
+        // Remove any comments
+        value = Utils.removeComments(value);
+
+        if (Utils.isURL(value)) {
+            row._dataValue = defaultsDeep({}, {$http: {url: value}}, has(row._dataValue, "$http") ? row._dataValue : null);
+            return;
         }
-        else if (isString(row.value)) {
+
+        if (isString(value)) {
+
             // Can we convert this string to an Object?
             try {
-                row._dataValue = JSON.parse(row.value);
+                row._dataValue = JSON.parse(value);
+                return;
             } catch (e) {
 
                 // Is this a script?
-                if (Utils.isScript(row.value)) {
+                if (Utils.isScript(value)) {
                     row._dataValue = {
-                        $js: row.value
+                        $js: value
                     };
+                    return;
                 }
+
                 // Is this a question?
-                else if (/.*\?\s*$/.test(row.value)) {
-                    row._dataValue = defaultsDeep({}, {$ask: {question:row.value}}, row._dataValue);
+                if (/.*\?\?\s*$/.test(value)) {
+                    row._dataValue = defaultsDeep({}, {$ask: {question: value.replace(/\?$/, "")}}, has(row._dataValue, "$ask") ? row._dataValue : null);
+                    return;
                 }
             }
         }
 
+        row._dataValue = value;
     }
 
     static getDataValue(row: Row): any {
@@ -62,7 +73,13 @@ export class RowUtils {
     }
 
     static getCalculatedValue(row: Row): any {
-        return isNil(row._calculatedValue) ? row.value : row._calculatedValue;
+        let returnValue = isNil(row._calculatedValue) ? row.value : row._calculatedValue;
+
+        if (isString(returnValue)) {
+            returnValue = Utils.removeComments(returnValue);
+        }
+
+        return returnValue;
     }
 
     static async getOutputComponent(row: Row, onRowUpdated?: (newRow: Row) => void): Promise<React.ReactNode> {
@@ -106,6 +123,8 @@ export class RowUtils {
             } else {
                 outputComponent = <a href={calculatedValue} target="_blank">{calculatedValue}</a>
             }
+        } else if (/^-+$/.test(calculatedValue)) {
+            outputComponent = <hr/>;
         } else {
             outputComponent = calculatedValue.toString();
         }

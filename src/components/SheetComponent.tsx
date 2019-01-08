@@ -1,18 +1,25 @@
 import * as React from "react";
 import {RowComponent} from "./RowComponent";
 import {Row, RowUtils} from "../common/SheetDoc";
-import {set, cloneDeep, map, debounce, isNil, findIndex, get} from "lodash";
+import {set, cloneDeep, map, debounce, isNil, findIndex, get, each, has} from "lodash";
 import {DynON} from "../../../DynON";
 import {Utils} from "../common/Utils";
+import {FaEye, FaEyeSlash} from "react-icons/fa";
 
 export interface SheetComponentProps {
 }
 
 export interface SheetComponentState {
     rows: Row[];
+    hideCode?: boolean;
 }
 
 export class SheetComponent extends React.Component<SheetComponentProps, SheetComponentState> {
+
+    lastDataDoc;
+    customDataHandlerCache = {};
+    delayedCustomDataHandlerActions = {};
+    lockDelayedCustomData = false;
 
     constructor(props) {
         super(props);
@@ -22,7 +29,24 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
         };
     }
 
+    static getDerivedStateFromProps(props, state) {
+        if (isNil(state.rows) || state.rows.length === 0) {
+            return {
+                rows: [{
+                    id: "r1"
+                }]
+            };
+        }
+
+        return null;
+    }
+
     componentDidMount(): void {
+        this.lastDataDoc = null;
+        this.customDataHandlerCache = {};
+        this.delayedCustomDataHandlerActions = {};
+        this.lockDelayedCustomData = false;
+
         try {
             let rows = JSON.parse(localStorage.getItem("last_sheet")) || [];
 
@@ -33,8 +57,61 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
         }
     }
 
-    private _customDataCache = {};
-    handleCustomData = async (providerName: string, providerOptions?: any, useCache: boolean = false): Promise<any> => {
+    delayedCustomDataHandler = debounce(async () => {
+
+        if (this.lockDelayedCustomData) {
+            return;
+        }
+
+        this.lockDelayedCustomData = true;
+
+        let actions = [];
+        each(this.delayedCustomDataHandlerActions, (customDataInfo: { key: string, name: string, options: any }) => {
+            if (customDataInfo.name === "$http") {
+                actions.push(Utils.fetch(customDataInfo.options)
+                    .then((response) => {
+                        this.customDataHandlerCache[customDataInfo.key] = {
+                            ts: Date.now(),
+                            value: response
+                        };
+                    }).catch(error => {
+                        this.customDataHandlerCache[customDataInfo.key] = {
+                            ts: Date.now(),
+                            value: error
+                        };
+                    }));
+            }
+        });
+
+        console.log("Processing Delayed Data...");
+        await Promise.all(actions);
+        console.log("Delayed Data Finished...");
+
+        await this.doCalculation(cloneDeep(this.state.rows));
+
+        this.delayedCustomDataHandlerActions = {};
+        this.lockDelayedCustomData = false;
+    }, 1000);
+
+    handleDelayedCustomData(providerName: string, providerOptions?: any): any {
+        let customHandlerKey = Utils.stableJSONStringify([providerName, providerOptions]);
+
+        if (has(this.customDataHandlerCache, customHandlerKey)) {
+            return this.customDataHandlerCache[customHandlerKey].value;
+        }
+
+        this.delayedCustomDataHandlerActions[customHandlerKey] = {
+            key: customHandlerKey,
+            name: providerName,
+            options: providerOptions
+        };
+
+        this.delayedCustomDataHandler.cancel();
+        this.delayedCustomDataHandler();
+        return "Fetching...";
+    }
+
+    handleCustomData = async (providerName: string, providerOptions?: any): Promise<any> => {
         switch (providerName) {
             case "$js": {
                 try {
@@ -44,21 +121,7 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
                 }
             }
             case "$http": {
-                try {
-
-                    let cacheKey = providerName + JSON.stringify(providerOptions);
-
-                    if (useCache) {
-                        return this._customDataCache[cacheKey];
-                    }
-
-                    let result = await Utils.fetch(providerOptions);
-                    this._customDataCache[cacheKey] = result;
-                    return result;
-
-                } catch (e) {
-                    return e;
-                }
+                return this.handleDelayedCustomData(providerName, providerOptions);
             }
             case "$ask": {
                 return get(providerOptions, "answer");
@@ -71,49 +134,72 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
         }
     };
 
-    delayedHandleCustomData = async (providerName: string, providerOptions?: any): Promise<any> => {
-        this.delayedDoCalculation();
-        return this.handleCustomData(providerName, providerOptions, true);
-    };
-
-    delayedDoCalculation = debounce(() => {
-        this._customDataCache = {};
-        this.doCalculation(false);
-    }, 1000);
-
-    getDataDoc(): any {
+    static getDataDoc(rows: Row[]): any {
         let dataDoc = {};
 
-        for (let row of this.state.rows) {
+        for (let row of rows) {
             dataDoc[row.id] = cloneDeep(RowUtils.getDataValue(row));
         }
 
         return dataDoc;
     }
 
-    async doCalculation(delayed: boolean = true) {
-        let dataDoc = this.getDataDoc();
+    saveDoc() {
+        localStorage.setItem("last_sheet", JSON.stringify(this.state.rows));
+    }
 
-        console.log(dataDoc);
+    async doCalculation(newRows: Row[]) {
 
-        Utils.displayLoadingIndicator(true);
+        this.delayedCustomDataHandler.cancel();
+        this.delayedCustomDataHandlerActions = {};
 
-        try {
-            await DynON.fillReferences(dataDoc, dataDoc, null, delayed ? this.delayedHandleCustomData : this.handleCustomData);
-        } catch (e) {
+        let dataDoc = SheetComponent.getDataDoc(newRows);
+
+        let dirtyRowIDs = [];
+        each(dataDoc, (rowData, rowID) => {
+            if (isNil(this.lastDataDoc) || !Utils.isEqual(rowData, this.lastDataDoc[rowID])) {
+                dirtyRowIDs.push(rowID);
+            }
+        });
+
+        // Are there any rows that no longer exist?
+        each(this.lastDataDoc, (rowData, rowID) => {
+            if (!has(dataDoc, rowID)) {
+                dirtyRowIDs.push(rowID);
+            }
+        });
+
+        console.log({
+            dirty: dirtyRowIDs,
+            data: dataDoc
+        });
+
+        this.lastDataDoc = dataDoc;
+
+        if (dirtyRowIDs.length > 0) {
+            console.log("Calculating");
+
+            Utils.displayLoadingIndicator(true);
+
+            try {
+                await DynON.fillReferences(dataDoc, dataDoc, null, this.handleCustomData);
+            } catch (e) {
+            }
+
+            Utils.displayLoadingIndicator(false);
         }
 
-        Utils.displayLoadingIndicator(false);
-
-        let rows = cloneDeep(this.state.rows);
-        for (let row of rows) {
+        for (let row of newRows) {
             RowUtils.setCalculatedValue(row, dataDoc[row.id]);
         }
 
-        this.setState({
-            rows: rows
-        }, () => {
-            localStorage.setItem("last_sheet", JSON.stringify(this.state.rows));
+        return new Promise((resolve, reject) => {
+            this.setState({
+                rows: newRows
+            }, () => {
+                this.saveDoc();
+                resolve();
+            });
         });
     }
 
@@ -129,52 +215,44 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
         }
     }
 
-    handleRowsChanged(changedRowIDs: string[]) {
-        if (isNil(changedRowIDs)) {
-            return;
-        }
-
-        this.doCalculation();
-    }
-
     handleRowDeleted(rowIndex: number) {
-        let changedRow = this.state.rows[rowIndex];
-        let rows = cloneDeep(this.state.rows);
-        rows.splice(rowIndex, 1);
-        this.setState({
-            rows: rows
-        }, () => this.handleRowsChanged([changedRow.id]));
+        let newRows = cloneDeep(this.state.rows);
+        newRows.splice(rowIndex, 1);
+        this.doCalculation(newRows);
     }
 
     handleRowUpdated(rowIndex: number, row: Row) {
-        let oldRow = this.state.rows[rowIndex];
-        let changedRowIDs = [row.id];
+        let newRows = cloneDeep(this.state.rows);
+        set(newRows, rowIndex, row);
 
-        if (oldRow && oldRow.id !== row.id) {
-            changedRowIDs.push(oldRow.id);
-        }
-
-        let rows = cloneDeep(this.state.rows);
-        set(rows, rowIndex, row);
+        // There seems to be a bug in react where calling an async function (doCalculation) to update the props of an input causes the cursor to jump around.
+        // So unfortunately we have to update the state twice.
         this.setState({
-            rows: rows
-        }, () => this.handleRowsChanged(changedRowIDs));
+            rows: newRows
+        }, () => {
+            let newRows = cloneDeep(this.state.rows);
+            this.doCalculation(newRows)
+        });
     }
 
-    renderRows(): RowComponent[] {
-
-        let rows = map(this.state.rows, (row: Row, rowIndex) => {
-            return <RowComponent key={rowIndex}
-                                 row={row}
-                                 onDelete={() => this.handleRowDeleted(rowIndex)}
-                                 onMoveUp={() => this.handleRowMove(rowIndex, -1)}
-                                 onMoveDown={() => this.handleRowMove(rowIndex, 1)}
-                                 allowMoveUp={rowIndex > 0}
-                                 allowMoveDown={rowIndex < this.state.rows.length - 1}
-                                 onRowUpdated={(row) => this.handleRowUpdated(rowIndex, row)}/>
+    handleRowInsertBelow(rowIndex: number) {
+        let newRows = cloneDeep(this.state.rows);
+        newRows.splice(rowIndex + 1, 0, {
+            id: this.getNewRowID(rowIndex)
         });
+        this.setState({
+            rows: newRows
+        }, () => this.saveDoc);
+    }
 
-        let newRowIndex = this.state.rows.length;
+    handleToggleHideCode = () => {
+        this.setState({
+            hideCode: !this.state.hideCode
+        });
+    };
+
+    getNewRowID(startingIndex: number = this.state.rows.length): string {
+        let newRowIndex = startingIndex;
         let newRowID;
 
         do {
@@ -183,20 +261,29 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
         }
         while (findIndex(this.state.rows, {id: newRowID}) !== -1);
 
-        rows.push(<RowComponent key={this.state.rows.length}
-                                row={{
-                                    id: newRowID
-                                }}
-                                hideToolbox={true}
-                                onDelete={() => this.handleRowDeleted(this.state.rows.length)}
-                                onRowUpdated={(row) => this.handleRowUpdated(this.state.rows.length, row)}/>);
-        return rows;
+        return newRowID;
+    }
+
+    renderRows(): RowComponent[] {
+        return map(this.state.rows, (row: Row, rowIndex) => {
+            return <RowComponent key={rowIndex}
+                                 hideCode={this.state.hideCode}
+                                 row={row}
+                                 onDelete={() => this.handleRowDeleted(rowIndex)}
+                                 onMoveUp={() => this.handleRowMove(rowIndex, -1)}
+                                 onMoveDown={() => this.handleRowMove(rowIndex, 1)}
+                                 allowMoveUp={rowIndex > 0}
+                                 allowMoveDown={rowIndex < this.state.rows.length - 1}
+                                 onRowUpdated={(row) => this.handleRowUpdated(rowIndex, row)}
+                                 onInsertBelow={() => this.handleRowInsertBelow(rowIndex)}/>
+        });
     }
 
     render() {
         return <React.Fragment>
             <div className="toolbar">
-                <div>Edit Mode</div>
+                <a className="is-size-7" onClick={this.handleToggleHideCode}><span className="icon">{this.state.hideCode ? <FaEye/> :
+                    <FaEyeSlash/>}</span> {this.state.hideCode ? "Show" : "Hide"} sheet code</a>
             </div>
             <div className="sheet">
                 {this.renderRows()}

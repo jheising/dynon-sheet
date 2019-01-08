@@ -21,7 +21,7 @@ body, html {
 
 .toolbar
 {
-  height: 50px;
+  height: 40px;
   background-color: #383c69;
   display: flex;
   flex-direction: row;
@@ -42,20 +42,39 @@ body, html {
   word-break: break-word;
 }
 
+.row-insert
+{
+  opacity: 0;
+  transition: opacity 1s;
+  display: flex;
+  align-content: center;
+  align-items: center;
+
+  &:hover
+  {
+    opacity: 1;
+    cursor: pointer;
+  }
+}
+
 .row-toolbox
 {
-  max-width: 100px;
   padding-top: 20px;
 
   & > *
   {
-    margin-left: 0.5em;
+    margin-right: 0.5em;
   }
 }
 
 .row-id
 {
   max-width: 175px;
+
+  input
+  {
+    font-family: $codeFont;
+  }
 }
 
 .row-equals, .row-value {
@@ -63,7 +82,7 @@ body, html {
 }
 
 .text-editor {
-
+  font-family: $codeFont;
   //@extend .input;
   background-color: $input-background-color;
   border: 1px solid $input-border-color;
@@ -87,6 +106,10 @@ body, html {
     background-color: $input-background-color;
     color: $input-color;
     -webkit-font-smoothing: antialiased;
+  }
+
+  .number {
+    all: unset;
   }
 }
 
