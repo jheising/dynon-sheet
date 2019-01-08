@@ -5,6 +5,23 @@ import {set, cloneDeep, map, debounce, isNil, findIndex, get, each, has} from "l
 import {DynON} from "../../../DynON";
 import {Utils} from "../common/Utils";
 import {FaEye, FaEyeSlash} from "react-icons/fa";
+import {
+    SortableContainer,
+    SortableElement,
+    arrayMove,
+} from "react-sortable-hoc";
+
+const SortableItem = SortableElement(({row}) => <li>{row.id}</li>);
+
+const SortableRows = SortableContainer(({rows}) => {
+    return (
+        <ul>
+            {rows.map((value, index) => (
+                <SortableItem key={`item-${index}`} index={index} value={value} />
+            ))}
+        </ul>
+    );
+});
 
 export interface SheetComponentProps {
 }
@@ -265,6 +282,9 @@ export class SheetComponent extends React.Component<SheetComponentProps, SheetCo
     }
 
     renderRows(): RowComponent[] {
+
+        return <SortableRows rows={this.state.rows}/>
+
         return map(this.state.rows, (row: Row, rowIndex) => {
             return <RowComponent key={rowIndex}
                                  hideCode={this.state.hideCode}
