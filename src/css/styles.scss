@@ -28,6 +28,11 @@ body, html {
   flex-wrap: wrap;
   align-items: center;
   padding: 0.5em;
+
+  & > *
+  {
+    margin-right: 1em;
+  }
 }
 
 .sheet {
@@ -42,24 +47,38 @@ body, html {
   word-break: break-word;
 }
 
-.row-insert
+.columns
 {
+  &.row, &.row-insert
+  {
+    margin: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+.row-insert {
   opacity: 0;
   transition: opacity 1s;
   display: flex;
   align-content: center;
   align-items: center;
+  padding: 1em;
 
-  &:hover
-  {
+  &:hover {
     opacity: 1;
     cursor: pointer;
   }
 }
 
+.drag-handle
+{
+  cursor: move;
+}
+
 .row-toolbox
 {
-  padding-top: 20px;
+  padding-top: 17px;
 
   & > *
   {
@@ -74,16 +93,17 @@ body, html {
   input
   {
     font-family: $codeFont;
+    font-size: $codeFontSize;
   }
 }
 
 .row-equals, .row-value {
-  padding-top: 18px;
+  padding-top: 14px;
 }
 
 .text-editor {
   font-family: $codeFont;
-  //@extend .input;
+  font-size: $codeFontSize;
   background-color: $input-background-color;
   border: 1px solid $input-border-color;
   box-shadow: $input-shadow;
@@ -115,7 +135,6 @@ body, html {
 
 .json-viewer-body {
   font-family: $codeFont;
-  //font-size: 0.75em;
 }
 
 .json-viewer-tools

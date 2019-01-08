@@ -3,20 +3,17 @@ import {cloneDeep, isNil, isObjectLike, get} from "lodash";
 import {Row, RowUtils} from "../common/SheetDoc";
 import {TextEditor} from "./TextEditor";
 import {Utils} from "../common/Utils";
-import {FaBan, FaChevronCircleUp, FaChevronCircleDown, FaEye, FaEyeSlash, FaPlus} from "react-icons/fa";
-import {SortableContainer, SortableElement} from "react-sortable-hoc";
+import {FaBan, FaBars, FaEye, FaEyeSlash, FaPlus} from "react-icons/fa";
+import {SortableHandle} from "react-sortable-hoc";
+
+const DragHandle = SortableHandle(() => <span className="drag-handle"><FaBars/></span>);
 
 export interface RowComponentProps {
     row: Row;
     onRowUpdated: (row: Row) => void;
-    onDelete?: () => void;
-    onMoveUp?: () => void;
-    onMoveDown?: () => void;
+    onRowDelete?: () => void;
     onInsertBelow?: () => void;
     hideToolbox?: boolean;
-    allowMoveUp?: boolean;
-    allowMoveDown?: boolean;
-
     hideCode?: boolean;
 }
 
@@ -78,21 +75,9 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
         }
     };
 
-    handleMoveUp = () => {
-        if (this.props.onMoveUp) {
-            this.props.onMoveUp();
-        }
-    };
-
-    handleMoveDown = () => {
-        if (this.props.onMoveDown) {
-            this.props.onMoveDown();
-        }
-    };
-
     handleDelete = () => {
-        if (this.props.onDelete) {
-            this.props.onDelete();
+        if (this.props.onRowDelete) {
+            this.props.onRowDelete();
         }
     };
 
@@ -124,16 +109,7 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
         let tools = [];
 
         if (!this.props.hideToolbox) {
-            //tools.push(<a className="button is-small is-danger is-rounded is-outlined" onClick={this.handleDelete}>Delete</a>);
-
-
-            /*if (this.props.allowMoveUp) {
-                tools.push(<a title="Move Up" key="up" className="" onClick={this.handleMoveUp}><FaChevronCircleUp/></a>);
-            }
-
-            if (this.props.allowMoveDown) {
-                tools.push(<a title="Move Down" key="down" className="" onClick={this.handleMoveDown}><FaChevronCircleDown/></a>);
-            }*/
+            tools.push(<DragHandle key={"move"}/>);
 
             tools.push(<a title={this.props.row.hidden ? "Set to Visible" : "Set to Hidden"} key="hidden" onClick={this.handleRowHiddenToggled}>{this.props.row.hidden ? <FaEyeSlash/> : <FaEye/>}</a>);
 
@@ -172,8 +148,8 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
                     {this.state.outputComponent}
                 </div>
             </div>
-            {this.props.hideCode ? null : <div className="columns" onClick={this.handleInsertBelow}>
-                <div className="column row-insert is-size-7"><FaPlus/>&nbsp;&nbsp;Insert</div>
+            {this.props.hideCode ? null : <div className="columns row-insert is-size-7" onClick={this.handleInsertBelow}>
+                <FaPlus/>&nbsp;&nbsp;Insert
             </div>}
         </React.Fragment>;
     }

@@ -2,10 +2,9 @@
   "name": "dynon-sheet",
   "version": "1.0.0",
   "description": "",
-  "main": "webpack.config.js",
   "scripts": {
     "watch": "webpack --mode development -w",
-    "prod:build": "bash ./build-production.sh"
+    "build:prod": "rm -rf ./dist && webpack --mode production"
   },
   "author": "",
   "license": "ISC",

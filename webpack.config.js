@@ -25,9 +25,6 @@ module.exports = {
         chunkFilename: '[name].chunk.js',
         publicPath: "dist/"
     },
-    externals: {
-        "vm2": "vm2"
-    },
     module: {
         rules: [
             {
