@@ -14,7 +14,7 @@ import {
 
 const SAMPLE_DOC = [{"id": "r1", "value": "// This is a comment, it doesn't do anything", "_dataValue": {"$js": ""}}, {
     "id": "your_name",
-    "value": "What is your name??",
+    "value": "// You can ask for user input by appending a sentence with ??\nWhat is your name??",
     "_dataValue": {"$ask": {"question": "What is your name?", "answer": ""}},
     "_calculatedValue": ""
 }, {"id": "r3", "value": "// You can reference other cells with {{cell_name}}\nHi {{your_name}}!", "_dataValue": "Hi {{your_name}}!", "_calculatedValue": "Hi !"}, {
