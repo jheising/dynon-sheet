@@ -3,10 +3,8 @@ import {cloneDeep, isNil, isObjectLike, get} from "lodash";
 import {Row, RowUtils} from "../common/SheetDoc";
 import {TextEditor} from "./TextEditor";
 import {Utils} from "../common/Utils";
-import {FaBan, FaBars, FaEye, FaEyeSlash, FaPlus} from "react-icons/fa";
-import {SortableHandle} from "react-sortable-hoc";
-
-const DragHandle = SortableHandle(() => <span className="drag-handle"><FaBars/></span>);
+import {FaBan, FaEye, FaEyeSlash, FaPlus} from "react-icons/fa";
+import {DragHandle} from "./DragHandle";
 
 export interface RowComponentProps {
     row: Row;
@@ -45,14 +43,18 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
         });
     }
 
+    handleRowUpdated = (newRow:Row) => {
+        if (this.props.onRowUpdated) {
+            this.props.onRowUpdated(newRow);
+        }
+    };
+
     handleRowIDUpdated = (event) => {
         let row = cloneDeep(this.props.row);
 
         row.id = Utils.slugify(event.target.value);
 
-        if (this.props.onRowUpdated) {
-            this.props.onRowUpdated(row);
-        }
+        this.handleRowUpdated(row);
     };
 
     handleRowValueUpdated = (value) => {
@@ -60,9 +62,7 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
 
         RowUtils.setValue(row, value);
 
-        if (this.props.onRowUpdated) {
-            this.props.onRowUpdated(row);
-        }
+        this.handleRowUpdated(row);
     };
 
     handleRowHiddenToggled = () => {
@@ -70,9 +70,7 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
 
         row.hidden = !row.hidden;
 
-        if (this.props.onRowUpdated) {
-            this.props.onRowUpdated(row);
-        }
+        this.handleRowUpdated(row);
     };
 
     handleDelete = () => {
@@ -94,7 +92,7 @@ export class RowComponent extends React.Component<RowComponentProps, RowComponen
     };
 
     renderAdvancedSettings() {
-        let advancedEditor = RowUtils.getAdvancedEditor(this.props.row);
+        let advancedEditor = RowUtils.getAdvancedEditor(this.props.row, this.props.onRowUpdated);
         if (isNil(advancedEditor)) {
             return null;
         }

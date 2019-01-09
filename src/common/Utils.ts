@@ -120,6 +120,11 @@ export class Utils {
 
             let signalResponse: HTTPResponse = {};
 
+            if(isNil(request.method) || request.method.length === 0)
+            {
+                request.method = "GET";
+            }
+
             fetch(`https://apiproxy.signalpattern.com/fetch/${request.url}`, {
                 method: request.method,
                 headers: new Headers(request.headers),

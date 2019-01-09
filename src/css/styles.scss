@@ -76,7 +76,7 @@ body, html {
   cursor: move;
 }
 
-.row-toolbox
+.row-toolbox, .collection-editor-row-toolbox
 {
   padding-top: 17px;
 
@@ -84,6 +84,11 @@ body, html {
   {
     margin-right: 0.5em;
   }
+}
+
+.collection-editor-row-toolbox
+{
+  max-width: 75px;
 }
 
 .row-id
@@ -276,4 +281,9 @@ ul.json-viewer-level {
     max-width: 500px;
     margin-top: -0.4em;
   }
+}
+
+.setting-header
+{
+  margin-top: 0.15em;
 }

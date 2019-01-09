@@ -2,7 +2,6 @@ import * as React from "react";
 import Editor from "react-simple-code-editor";
 import {isNil} from "lodash";
 import {highlight, languages} from "prismjs/components/prism-core";
-//import "prismjs/components/prism-json";
 import "prismjs/components/prism-clike";
 import "prismjs/components/prism-javascript";
 import "prismjs/themes/prism-tomorrow.css";
@@ -11,6 +10,8 @@ import {Utils} from "../common/Utils";
 export interface TextEditorProps {
     value?:string;
     onValueChange?:(newValue:string) => void;
+    placeholder?:string;
+    ignoreTabKey?:boolean;
 }
 
 languages.default = {
@@ -53,6 +54,8 @@ export class TextEditor extends React.PureComponent<TextEditorProps> {
 
     render() {
         return <Editor
+            ignoreTabKey={this.props.ignoreTabKey}
+            placeholder={this.props.placeholder}
             className="text-editor"
             value={isNil(this.props.value) ? "" : this.props.value}
             onValueChange={this.props.onValueChange}

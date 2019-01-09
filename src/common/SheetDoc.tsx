@@ -4,13 +4,15 @@ import {HTTPRequestComponent} from "../components/HTTPRequestComponent";
 import {Utils} from "./Utils";
 import {JSONViewer} from "../components/JSONViewer";
 import * as ReactMarkdown from "react-markdown";
+import {AskRequestComponent} from "../components/AskRequestComponent";
+import {QuestionOutputComponent} from "../components/QuestionOutputComponent";
 
 export interface Row {
     id: string;
     value?: string;
     hidden?: boolean;
-    _dataValue?: any;
-    _calculatedValue?: any;
+    dataValue?: any;
+    calculatedValue?: any;
 }
 
 export class RowUtils {
@@ -26,7 +28,7 @@ export class RowUtils {
         value = Utils.removeComments(value);
 
         if (Utils.isURL(value)) {
-            row._dataValue = defaultsDeep({}, {$http: {url: value}}, has(row._dataValue, "$http") ? row._dataValue : null);
+            row.dataValue = defaultsDeep({}, {$http: {url: value}}, has(row.dataValue, "$http") ? row.dataValue : null);
             return;
         }
 
@@ -34,47 +36,51 @@ export class RowUtils {
 
             // Can we convert this string to an Object?
             try {
-                row._dataValue = JSON.parse(value);
+                row.dataValue = JSON.parse(value);
                 return;
             } catch (e) {
+            }
 
-                // Is this a script?
-                if (Utils.isScript(value)) {
-                    row._dataValue = {
-                        $js: value
-                    };
-                    return;
-                }
+            // Is this a script?
+            if (Utils.isScript(value)) {
+                row.dataValue = {
+                    $js: value
+                };
+                return;
+            }
 
-                // Is this a question?
-                if (/.*\?\?\s*$/.test(value)) {
-                    row._dataValue = defaultsDeep({}, {$ask: {question: value.replace(/\?$/, "")}}, has(row._dataValue, "$ask") ? row._dataValue : null);
-                    return;
-                }
+            // Is this a question?
+            if (/.*\?\?\s*$/.test(value)) {
+                row.dataValue = defaultsDeep({}, {$ask: {question: value.replace(/\?$/, "")}}, has(row.dataValue, "$ask") ? row.dataValue : null);
+                return;
             }
         }
 
-        row._dataValue = value;
+        row.dataValue = value;
+    }
+
+    static setDataValue(row: Row, dataValue: any) {
+        row.dataValue = dataValue;
     }
 
     static getDataValue(row: Row): any {
-        return row._dataValue;
+        return row.dataValue;
     }
 
     static setCalculatedValue(row: Row, calculatedValue: any) {
-        row._calculatedValue = calculatedValue;
+        row.calculatedValue = calculatedValue;
 
         if (isString(calculatedValue)) {
             // Can we convert this string to an Object?
             try {
-                row._calculatedValue = JSON.parse(calculatedValue);
+                row.calculatedValue = JSON.parse(calculatedValue);
             } catch (e) {
             }
         }
     }
 
     static getCalculatedValue(row: Row): any {
-        let returnValue = isNil(row._calculatedValue) ? row.value : row._calculatedValue;
+        let returnValue = isNil(row.calculatedValue) ? row.value : row.calculatedValue;
 
         if (isString(returnValue)) {
             returnValue = Utils.removeComments(returnValue);
@@ -89,19 +95,7 @@ export class RowUtils {
         let dataValue = RowUtils.getDataValue(row);
 
         if (has(dataValue, "$ask")) {
-            return <div className="question-output">
-                <ReactMarkdown linkTarget="_blank" className="question-label content" source={get(dataValue, "$ask.question", "")}/>
-                <input className="input" type="text"
-                       value={get(dataValue, "$ask.answer", "")}
-                       onChange={(event) => {
-                           let newRow = cloneDeep(row);
-                           set(newRow, "_dataValue.$ask.answer", event.target.value);
-
-                           if (onRowUpdated) {
-                               onRowUpdated(newRow);
-                           }
-                       }}/>
-            </div>
+            return <QuestionOutputComponent row={row} onRowUpdated={onRowUpdated}/>
         }
 
         let calculatedValue = RowUtils.getCalculatedValue(row);
@@ -133,7 +127,7 @@ export class RowUtils {
         return outputComponent;
     }
 
-    static getAdvancedEditor(row: Row): any {
+    static getAdvancedEditor(row: Row, onRowUpdated: (row: Row) => void): any {
 
         let dataValue = RowUtils.getDataValue(row);
 
@@ -142,7 +136,11 @@ export class RowUtils {
         }
 
         if (has(dataValue, "$http")) {
-            return <HTTPRequestComponent/>
+            return <HTTPRequestComponent row={row} onRowUpdated={onRowUpdated}/>
+        }
+
+        if (has(dataValue, "$ask")) {
+            return <AskRequestComponent row={row} onRowUpdated={onRowUpdated}/>
         }
 
         return null;
